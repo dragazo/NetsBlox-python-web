@@ -1,0 +1,15 @@
+{
+  "name": "python-web-pyodide",
+  "version": "0.1.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "node ./app.js",
+    "test": "test"
+  },
+  "author": "Devin Jean",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
