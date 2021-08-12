@@ -9,7 +9,7 @@ body {
     left: 0;
     border: 1px solid black;
 }
-#display {
+#display-container {
     position: absolute;
     top: 10%;
     right: 5px;
