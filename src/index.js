@@ -8,18 +8,31 @@ let running = false;
 
 const SAVED_CODE_KEY = 'saved-code';
 
-let turtles = {};
-const TURTLE_POLY = [[10, 0], [-8, -7], [-3, 0], [-8, 7]];
+let turtles = {};     // dict<turtle id, turtle>
+let turtleLines = {}; // dict<turtle id, line[]>
+const TURTLE_POLY = [[0, -10], [-7, 8], [0, 4], [7, 8]];
 
 class Turtle {
-    constructor() {
+    constructor(id) {
+        this.id = id;
         this.x = 0;
         this.y = 0;
         this.rot = 0;
+        this.lines = [];
+        this.wasDrawing = false;
+
+        turtles[id] = this;
+        turtleLines[id] = this.lines;
     }
-    goto(x, y) {
+    goto(x, y, drawing) {
+        if (drawing) {
+            if (this.wasDrawing) this.lines[this.lines.length - 1].push([x, y]);
+            else this.lines.push([[this.x, this.y], [x, y]]);
+        }
+
         this.x = x;
         this.y = y;
+        this.wasDrawing = drawing;
     }
     setheading(ang) {
         this.rot = ang;
@@ -35,22 +48,29 @@ function clearDisplay() {
 function updateDisplay() {
     clearDisplay();
 
-    function fillPoly(poly) {
+    function drawLine(poly) {
         draw.beginPath();
         draw.moveTo(poly[0][0], poly[0][1]);
         for (let i = 1; i < poly.length; ++i) {
             draw.lineTo(poly[i][0], poly[i][1]);
         }
-        draw.fill();
+    }
+
+    for (const id in turtleLines) {
+        for (const line of turtleLines[id]) {
+            drawLine(line);
+            draw.stroke();
+        }
     }
 
     for (const id in turtles) {
         const turtle = turtles[id];
         draw.save();
 
-        draw.translate(turtle.x, -turtle.y);
-        draw.rotate(-turtle.rot);
-        fillPoly(TURTLE_POLY);
+        draw.translate(turtle.x, turtle.y);
+        draw.rotate(turtle.rot);
+        drawLine(TURTLE_POLY);
+        draw.fill();
         draw.restore();
     }
 }
@@ -77,8 +97,8 @@ function run() {
                 case 'clear': clear(); break;
                 case 'finished': running = false; break;
             
-                case 'create-turtle': turtles[e.data.id] = new Turtle(); updateDisplay(); break;
-                case 'move-turtle': turtles[e.data.id].goto(e.data.to[0], e.data.to[1]); updateDisplay(); break;
+                case 'create-turtle': new Turtle(e.data.id); updateDisplay(); break;
+                case 'move-turtle': turtles[e.data.id].goto(e.data.to[0], e.data.to[1], e.data.drawing); updateDisplay(); break;
                 case 'rotate-turtle': turtles[e.data.id].setheading(e.data.to); updateDisplay(); break;
             }
         };

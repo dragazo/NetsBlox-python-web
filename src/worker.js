@@ -5,8 +5,12 @@ let g_pyodide = undefined;
 const clear = () => postMessage({ kind: 'clear' });
 const output = value => postMessage({ kind: 'output', value });
 
-const PI = Math.PI;
-const TWO_PI = 2 * PI;
+const TWO_PI = 2 * Math.PI;
+
+function mod(a, b) {
+    const raw = a % b;
+    return raw >= 0 ? raw : raw + b;
+}
 
 let turtleId = 0;
 let degrees = 360;
@@ -18,15 +22,16 @@ const jsturtle = {
             this.x = 0;
             this.y = 0;
             this.rot = 0; // angle [0, 1)
+            this.drawing = false;
             postMessage({ kind: 'create-turtle', id: this.id });
         }
         goto(x, y) {
             this.x = +x;
             this.y = +y;
-            postMessage({ kind: 'move-turtle', id: this.id, to: [this.x, this.y] });
+            postMessage({ kind: 'move-turtle', id: this.id, to: [this.x, -this.y], drawing: this.drawing });
         }
         setheading(ang) {
-            this.rot = (+ang / degrees) % 1;
+            this.rot = mod(+ang / degrees, 1);
             console.log('rot:', this.rot);
             postMessage({ kind: 'rotate-turtle', id: this.id, to: this.rot * TWO_PI });
         }
@@ -75,10 +80,16 @@ time.sleep = sync_sleep
 class Turtle:
     def __init__(self):
         self._jsturtle = _impl_jsturtle.Turtle.new()
+
     def goto(self, x, y):
         self._jsturtle.goto(x, y)
     def setheading(self, ang):
         self._jsturtle.setheading(ang)
+
+    def pendown(self):
+        self._jsturtle.drawing = True
+    def penup(self):
+        self._jsturtle.drawing = False
 
 turtle = types.ModuleType('turtle')
 turtle.Turtle = Turtle
