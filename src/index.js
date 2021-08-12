@@ -8,8 +8,12 @@ let running = false;
 
 const SAVED_CODE_KEY = 'saved-code';
 
+const UPDATE_INTERVAL = 16;
+let displayChanged = false;
+
 let turtles = {};     // dict<turtle id, turtle>
 let turtleLines = {}; // dict<turtle id, line[]>
+
 const TURTLE_POLY = [[0, -10], [-7, 8], [0, 4], [7, 8]];
 
 class Turtle {
@@ -20,6 +24,7 @@ class Turtle {
         this.rot = 0;
         this.lines = [];
         this.wasDrawing = false;
+        this.visible = true;
 
         turtles[id] = this;
         turtleLines[id] = this.lines;
@@ -39,15 +44,17 @@ class Turtle {
     }
 }
 
-function clearDisplay() {
-    draw.save();
-    draw.setTransform(1, 0, 0, 1, 0, 0);
-    draw.clearRect(0, 0, draw.canvas.width, draw.canvas.height);
-    draw.restore();
-}
+let redraws = 0;
 function updateDisplay() {
-    clearDisplay();
+    if (!displayChanged) return;
+    displayChanged = false;
 
+    function clearDisplay() {
+        draw.save();
+        draw.setTransform(1, 0, 0, 1, 0, 0);
+        draw.clearRect(0, 0, draw.canvas.width, draw.canvas.height);
+        draw.restore();
+    }
     function drawLine(poly) {
         draw.beginPath();
         draw.moveTo(poly[0][0], poly[0][1]);
@@ -55,6 +62,8 @@ function updateDisplay() {
             draw.lineTo(poly[i][0], poly[i][1]);
         }
     }
+
+    clearDisplay();
 
     for (const id in turtleLines) {
         for (const line of turtleLines[id]) {
@@ -65,8 +74,9 @@ function updateDisplay() {
 
     for (const id in turtles) {
         const turtle = turtles[id];
-        draw.save();
+        if (!turtle.visible) continue;
 
+        draw.save();
         draw.translate(turtle.x, turtle.y);
         draw.rotate(turtle.rot);
         drawLine(TURTLE_POLY);
@@ -97,9 +107,22 @@ function run() {
                 case 'clear': clear(); break;
                 case 'finished': running = false; break;
             
-                case 'create-turtle': new Turtle(e.data.id); updateDisplay(); break;
-                case 'move-turtle': turtles[e.data.id].goto(e.data.to[0], e.data.to[1], e.data.drawing); updateDisplay(); break;
-                case 'rotate-turtle': turtles[e.data.id].setheading(e.data.to); updateDisplay(); break;
+                case 'create-turtle':
+                    new Turtle(e.data.id);
+                    displayChanged = true;
+                    break;
+                case 'move-turtle':
+                    turtles[e.data.id].goto(e.data.to[0], e.data.to[1], e.data.drawing);
+                    displayChanged = true;
+                    break;
+                case 'rotate-turtle':
+                    turtles[e.data.id].setheading(e.data.to);
+                    displayChanged = true;
+                    break;
+                case 'showhide-turtle':
+                    turtles[e.data.id].visible = e.data.visible;
+                    displayChanged = true;
+                    break;
             }
         };
     }
@@ -134,7 +157,7 @@ async function init() {
         display.width = display_container.clientWidth;
         display.height = display_container.clientHeight;
         draw.setTransform(1, 0, 0, 1, display.width / 2, display.height / 2);
-        updateDisplay(); // redraw whatever was on the canvas
+        displayChanged = true;
     };
     updateDisplaySize();
     window.onresize = updateDisplaySize;
@@ -147,4 +170,15 @@ async function init() {
 
     document.getElementById('go').addEventListener('click', run);
     document.getElementById('stop').addEventListener('click', stop);
+
+    function periodicUpdate() {
+        try {
+            updateDisplay();
+        }
+        catch (e) {
+            console.error(e);
+        }
+        setTimeout(periodicUpdate, UPDATE_INTERVAL);
+    }
+    periodicUpdate();
 }
