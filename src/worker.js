@@ -16,6 +16,29 @@ const pyodideLoader = (async () => {
 
     mod.registerJsModule('turtle', turtle);
 
+    // get a snapshot of the globals after init so we can delete user-defined ones (and imports)
+    const baseGlobals = new Set();
+    for (const x of mod.globals) baseGlobals.add(x);
+    mod.resetGlobals = () => {
+        const remove = [];
+        for (const x of mod.globals) {
+            if (!baseGlobals.has(x)) remove.push(x);
+        }
+        for (const x of remove) {
+            mod.globals.delete(x);
+        }
+    };
+
+    // apply any runtime modifications we need - imports will be wiped, but module changes will persist
+    await mod.runPythonAsync(`
+import time
+def sync_sleep(t):
+    v = time.time() + t
+    while time.time() < v:
+        pass
+time.sleep = sync_sleep
+`);
+
     return mod;
 })();
 
@@ -23,6 +46,8 @@ async function run(code) {
     const pyodide = await pyodideLoader;
     try {
         clear();
+
+        pyodide.resetGlobals();
         await pyodide.loadPackagesFromImports(code, console.log, console.log);
         await pyodide.runPythonAsync(code);
     } catch (err) {
